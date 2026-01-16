@@ -8,7 +8,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-import { Pencil, Trash2, CheckCircle2, Circle } from "lucide-react";
+import {
+  Pencil,
+  Trash2,
+  CheckCircle2,
+  Circle,
+  Save,
+  XCircle,
+} from "lucide-react";
 
 import {
   Select,
@@ -380,9 +387,10 @@ export default function DashboardPage() {
               placeholder="Write a todo..."
               value={title}
               onChange={(e) => setTitle(e.target.value)}
+              className="h-11 rounded-xl"
             />
 
-            <Button className="w-full" onClick={addTodo} disabled={loading}>
+            <Button className="w-full rounded-xl" onClick={addTodo} disabled={loading}>
               {loading ? "Adding..." : "Add Todo"}
             </Button>
           </CardContent>
@@ -410,24 +418,34 @@ export default function DashboardPage() {
                       <Input
                         value={editTitle}
                         onChange={(e) => setEditTitle(e.target.value)}
-                        placeholder="Update todo title"
+                        placeholder="Update todo title..."
+                        className="h-11 rounded-xl"
                       />
 
-                      <div className="flex gap-2">
+                      {/* ✅ Better Save/Cancel UI */}
+                      <div className="flex items-center gap-2">
                         <Button
-                          className="w-full"
                           onClick={() => updateTodoTitle(todo.id)}
                           disabled={loading}
+                          className="rounded-xl h-10 px-5 flex items-center gap-2"
                         >
-                          {loading ? "Saving..." : "Save"}
+                          {loading ? (
+                            "Saving..."
+                          ) : (
+                            <>
+                              <Save className="h-4 w-4" />
+                              Save
+                            </>
+                          )}
                         </Button>
 
                         <Button
-                          className="w-full"
-                          variant="secondary"
+                          variant="outline"
                           onClick={cancelEdit}
                           disabled={loading}
+                          className="rounded-xl h-10 px-5 flex items-center gap-2"
                         >
+                          <XCircle className="h-4 w-4" />
                           Cancel
                         </Button>
                       </div>
@@ -491,4 +509,4 @@ export default function DashboardPage() {
       </div>
     </div>
   );
-}
+} 
