@@ -12,19 +12,18 @@ export async function POST(req: Request) {
     const token = authHeader.replace("Bearer ", "");
 
     // ✅ verify caller token
-    const { data: callerData, error: callerError } =
+    const { data: userData, error: userError } =
       await supabaseAdmin.auth.getUser(token);
 
-    if (callerError || !callerData.user) {
+    if (userError || !userData.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const callerRole = callerData.user.app_metadata?.role;
+    const callerRole = userData.user.app_metadata?.role;
 
-    // ✅ only admin allowed
-    if (callerRole !== "admin") {
+    if (callerRole !== "superadmin") {
       return NextResponse.json(
-        { error: "Only admin can update roles" },
+        { error: "Only superadmin can update roles" },
         { status: 403 }
       );
     }
@@ -38,32 +37,14 @@ export async function POST(req: Request) {
       );
     }
 
+    // ✅ superadmin can promote/demote user <-> admin only
     if (role !== "admin" && role !== "user") {
-      return NextResponse.json({ error: "Invalid role" }, { status: 400 });
-    }
-
-    // ✅ fetch target user
-    const { data: targetData, error: targetError } =
-      await supabaseAdmin.auth.admin.getUserById(user_id);
-
-    if (targetError || !targetData.user) {
       return NextResponse.json(
-        { error: "Target user not found" },
-        { status: 404 }
+        { error: "Superadmin can set only user/admin role" },
+        { status: 400 }
       );
     }
 
-    const targetRole = targetData.user.app_metadata?.role || "user";
-
-    // ❌ superadmin cannot be changed by admin
-    if (targetRole === "superadmin") {
-      return NextResponse.json(
-        { error: "Superadmin role cannot be changed" },
-        { status: 403 }
-      );
-    }
-
-    // ✅ update role (user <-> admin allowed)
     const { error } = await supabaseAdmin.auth.admin.updateUserById(user_id, {
       app_metadata: { role },
     });

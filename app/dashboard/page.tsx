@@ -25,6 +25,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+type Role = "user" | "admin" | "superadmin";
+
 type Todo = {
   id: string;
   user_id: string;
@@ -37,14 +39,14 @@ type Todo = {
 type AdminUser = {
   id: string;
   email: string | null;
-  role: "admin" | "user";
+  role: Role;
 };
 
 export default function DashboardPage() {
   const router = useRouter();
 
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState<"admin" | "user">("user");
+  const [role, setRole] = useState<Role>("user");
 
   const [todos, setTodos] = useState<Todo[]>([]);
   const [title, setTitle] = useState("");
@@ -59,17 +61,15 @@ export default function DashboardPage() {
   const [roleLoading, setRoleLoading] = useState<string | null>(null);
 
   // ✅ dropdown selected roles state
-  const [selectedRoles, setSelectedRoles] = useState<
-    Record<string, "admin" | "user">
-  >({});
+  const [selectedRoles, setSelectedRoles] = useState<Record<string, Role>>({});
 
-  // ✅ Fetch Todos (Admin => all, User => own)
-  const fetchTodos = async (userId: string, userRole: "admin" | "user") => {
+  // ✅ Fetch Todos (Admin/Superadmin => all, User => own)
+  const fetchTodos = async (userId: string, userRole: Role) => {
     let query = supabase.from("todos").select("*").order("created_at", {
       ascending: false,
     });
 
-    if (userRole !== "admin") {
+    if (userRole === "user") {
       query = query.eq("user_id", userId);
     }
 
@@ -192,8 +192,8 @@ export default function DashboardPage() {
     router.replace("/login");
   };
 
-  // ✅ Admin: fetch users list
-  const fetchUsers = async () => {
+  // ✅ Admin/Superadmin: fetch users list
+  const fetchUsers = async (currentRole: Role) => {
     const sessionRes = await supabase.auth.getSession();
     const token = sessionRes.data.session?.access_token;
 
@@ -203,7 +203,13 @@ export default function DashboardPage() {
       return;
     }
 
-    const res = await fetch("/api/admin/users", {
+    // ✅ ROLE BASED ROUTE
+    const url =
+      currentRole === "superadmin"
+        ? "/api/superadmin/users"
+        : "/api/admin/users";
+
+    const res = await fetch(url, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -218,16 +224,16 @@ export default function DashboardPage() {
 
     setUsers(data.users || []);
 
-    // ✅ set dropdown state map
-    const map: Record<string, "admin" | "user"> = {};
+    // ✅ dropdown state map
+    const map: Record<string, Role> = {};
     (data.users || []).forEach((u: AdminUser) => {
       map[u.id] = u.role || "user";
     });
     setSelectedRoles(map);
   };
 
-  // ✅ Admin: update role
-  const updateUserRole = async (userId: string, newRole: "admin" | "user") => {
+  // ✅ Admin/Superadmin: update role
+  const updateUserRole = async (userId: string, newRole: Role) => {
     try {
       setRoleLoading(userId);
 
@@ -239,7 +245,13 @@ export default function DashboardPage() {
         return;
       }
 
-      const res = await fetch("/api/admin/set-role", {
+      // ✅ ROLE BASED ROUTE
+      const url =
+        role === "superadmin"
+          ? "/api/superadmin/set-role"
+          : "/api/admin/set-role";
+
+      const res = await fetch(url, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -256,7 +268,9 @@ export default function DashboardPage() {
       }
 
       alert("Role updated ✅");
-      fetchUsers();
+
+      // refresh list
+      fetchUsers(role);
     } finally {
       setRoleLoading(null);
     }
@@ -275,13 +289,13 @@ export default function DashboardPage() {
 
       setEmail(user.email || "");
 
-      const userRole = (user.app_metadata?.role as "admin" | "user") || "user";
+      const userRole = (user.app_metadata?.role as Role) || "user";
       setRole(userRole);
 
       fetchTodos(user.id, userRole);
 
-      if (userRole === "admin") {
-        fetchUsers();
+      if (userRole === "admin" || userRole === "superadmin") {
+        fetchUsers(userRole);
       }
     };
 
@@ -301,7 +315,11 @@ export default function DashboardPage() {
               Role:{" "}
               <span
                 className={`font-semibold ${
-                  role === "admin" ? "text-green-600" : "text-blue-600"
+                  role === "superadmin"
+                    ? "text-purple-600"
+                    : role === "admin"
+                    ? "text-green-600"
+                    : "text-blue-600"
                 }`}
               >
                 {role.toUpperCase()}
@@ -314,11 +332,15 @@ export default function DashboardPage() {
           </Button>
         </div>
 
-        {/* Admin Panel */}
-        {role === "admin" && (
+        {/* Admin/Superadmin Panel */}
+        {(role === "admin" || role === "superadmin") && (
           <Card className="rounded-2xl shadow-sm">
             <CardHeader>
-              <CardTitle>Admin Panel (Manage Roles)</CardTitle>
+              <CardTitle>
+                {role === "superadmin"
+                  ? "Super Admin Panel (Manage Roles)"
+                  : "Admin Panel (Manage Roles)"}
+              </CardTitle>
             </CardHeader>
 
             <CardContent className="space-y-4">
@@ -327,50 +349,64 @@ export default function DashboardPage() {
                   No users found...
                 </p>
               ) : (
-                users.map((u) => (
-                  <div
-                    key={u.id}
-                    className="border rounded-xl p-3 flex items-center justify-between gap-3"
-                  >
-                    <div>
-                      <p className="font-semibold text-sm">
-                        {u.email || "No Email"}
-                      </p>
-                      <p className="text-xs text-muted-foreground">{u.id}</p>
+                users.map((u) => {
+                  const isTargetSuperadmin = u.role === "superadmin";
+
+                  return (
+                    <div
+                      key={u.id}
+                      className="border rounded-xl p-3 flex items-center justify-between gap-3"
+                    >
+                      <div>
+                        <p className="font-semibold text-sm">
+                          {u.email || "No Email"}
+                        </p>
+                        <p className="text-xs text-muted-foreground">{u.id}</p>
+
+                        <p className="text-xs mt-1">
+                          Current Role:{" "}
+                          <span className="font-semibold">{u.role}</span>
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <Select
+                          value={selectedRoles[u.id] || u.role}
+                          disabled={isTargetSuperadmin} // ✅ superadmin ko change nahi kar sakte
+                          onValueChange={(val) =>
+                            setSelectedRoles((prev) => ({
+                              ...prev,
+                              [u.id]: val as Role,
+                            }))
+                          }
+                        >
+                          <SelectTrigger className="w-[140px]">
+                            <SelectValue placeholder="Role" />
+                          </SelectTrigger>
+
+                          <SelectContent>
+                            <SelectItem value="user">User</SelectItem>
+                            <SelectItem value="admin">Admin</SelectItem>
+                          </SelectContent>
+                        </Select>
+
+                        <Button
+                          disabled={
+                            roleLoading === u.id ||
+                            isTargetSuperadmin ||
+                            (role === "admin" && u.role === "admin")
+                          }
+                          variant="outline"
+                          onClick={() =>
+                            updateUserRole(u.id, selectedRoles[u.id] || u.role)
+                          }
+                        >
+                          {roleLoading === u.id ? "Updating..." : "Update"}
+                        </Button>
+                      </div>
                     </div>
-
-                    <div className="flex items-center gap-2">
-                      <Select
-                        value={selectedRoles[u.id] || u.role}
-                        onValueChange={(val) =>
-                          setSelectedRoles((prev) => ({
-                            ...prev,
-                            [u.id]: val as "admin" | "user",
-                          }))
-                        }
-                      >
-                        <SelectTrigger className="w-[140px]">
-                          <SelectValue placeholder="Role" />
-                        </SelectTrigger>
-
-                        <SelectContent>
-                          <SelectItem value="user">User</SelectItem>
-                          <SelectItem value="admin">Admin</SelectItem>
-                        </SelectContent>
-                      </Select>
-
-                      <Button
-                        disabled={roleLoading === u.id}
-                        variant="outline"
-                        onClick={() =>
-                          updateUserRole(u.id, selectedRoles[u.id] || u.role)
-                        }
-                      >
-                        {roleLoading === u.id ? "Updating..." : "Update"}
-                      </Button>
-                    </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </CardContent>
           </Card>
@@ -390,7 +426,11 @@ export default function DashboardPage() {
               className="h-11 rounded-xl"
             />
 
-            <Button className="w-full rounded-xl" onClick={addTodo} disabled={loading}>
+            <Button
+              className="w-full rounded-xl"
+              onClick={addTodo}
+              disabled={loading}
+            >
               {loading ? "Adding..." : "Add Todo"}
             </Button>
           </CardContent>
@@ -400,7 +440,7 @@ export default function DashboardPage() {
         <Card className="rounded-2xl shadow-sm">
           <CardHeader>
             <CardTitle>
-              {role === "admin" ? "All Users Todos" : "Your Todos"}
+              {role === "user" ? "Your Todos" : "All Users Todos"}
             </CardTitle>
           </CardHeader>
 
@@ -422,7 +462,6 @@ export default function DashboardPage() {
                         className="h-11 rounded-xl"
                       />
 
-                      {/* ✅ Better Save/Cancel UI */}
                       <div className="flex items-center gap-2">
                         <Button
                           onClick={() => updateTodoTitle(todo.id)}
@@ -509,4 +548,4 @@ export default function DashboardPage() {
       </div>
     </div>
   );
-} 
+}
