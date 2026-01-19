@@ -38,7 +38,6 @@ type Todo = {
   created_at: string;
   user_name: string | null;
 
-  // ✅ NEW
   status: Status;
   priority: Priority;
 };
@@ -68,10 +67,12 @@ export default function DashboardPage() {
   const [roleLoading, setRoleLoading] = useState<string | null>(null);
   const [selectedRoles, setSelectedRoles] = useState<Record<string, Role>>({});
 
-  // ✅ Filters (Screenshot UI)
+  // ✅ Filters
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<Status | "all">("all");
   const [priorityFilter, setPriorityFilter] = useState<Priority | "all">("all");
+
+ 
 
   // -------------------- Fetch Todos --------------------
   const fetchTodos = async (userId: string, userRole: Role) => {
@@ -115,8 +116,6 @@ export default function DashboardPage() {
       user_id: user.id,
       user_name: userName,
       is_done: false,
-
-      // ✅ default values
       status: "todo",
       priority: "medium",
     });
@@ -131,6 +130,24 @@ export default function DashboardPage() {
     setTitle("");
     fetchTodos(user.id, role);
   };
+
+
+
+  
+
+  {/* ✅ Upload & Extract Button (Add Todo ke neeche) */}
+<Button
+  className="w-full rounded-xl"
+  variant="outline"
+  onClick={() => router.push("/dashboard/upload")}
+>
+  Upload & Extract Document
+</Button>
+
+
+
+
+
 
   // -------------------- Edit Title --------------------
   const startEdit = (todo: Todo) => {
@@ -344,6 +361,8 @@ export default function DashboardPage() {
     });
   }, [todos, search, statusFilter, priorityFilter]);
 
+  
+
   return (
     <div className="min-h-screen bg-muted/40 p-6">
       <div className="max-w-6xl mx-auto space-y-6">
@@ -374,7 +393,7 @@ export default function DashboardPage() {
           </Button>
         </div>
 
-        {/* Admin/Superadmin Panel (UNCHANGED) */}
+        {/* Admin/Superadmin Panel */}
         {(role === "admin" || role === "superadmin") && (
           <Card className="rounded-2xl shadow-sm">
             <CardHeader>
@@ -452,34 +471,54 @@ export default function DashboardPage() {
           </Card>
         )}
 
-        {/* ✅ SUPERADMIN => TODOS HIDE */}
+        {/* SUPERADMIN => TODOS HIDE */}
         {role !== "superadmin" && (
           <>
+          
+
             {/* Add Task */}
-            <Card className="rounded-2xl shadow-sm">
-              <CardHeader>
-                <CardTitle>Add Task</CardTitle>
-              </CardHeader>
+<Card className="rounded-2xl shadow-sm">
+  <CardHeader>
+    <CardTitle>Add Task</CardTitle>
+  </CardHeader>
 
-              <CardContent className="space-y-3">
-                <Input
-                  placeholder="Write a task..."
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  className="h-11 rounded-xl"
-                />
+  <CardContent className="space-y-3">
+    <Input
+      placeholder="Write a task..."
+      value={title}
+      onChange={(e) => setTitle(e.target.value)}
+      className="h-11 rounded-xl"
+    />
 
-                <Button
-                  className="w-full rounded-xl"
-                  onClick={addTodo}
-                  disabled={loading}
-                >
-                  {loading ? "Adding..." : "Add Task"}
-                </Button>
-              </CardContent>
-            </Card>
+    <Button
+      className="w-full rounded-xl"
+      onClick={addTodo}
+      disabled={loading}
+    >
+      {loading ? "Adding..." : "Add Task"}
+    </Button>
+  </CardContent>
+</Card>
 
-            {/* Screenshot Style Table */}
+{/* ✅ Button yaha add karo */}
+<Button
+  className="w-full rounded-xl"
+  variant="outline"
+  onClick={() => router.push("/dashboard/upload")}
+>
+  Upload & Extract Document
+</Button>
+
+<Button
+  className="w-full rounded-xl"
+  variant="secondary"
+  onClick={() => router.push("/dashboard/documents")}
+>
+  View Uploaded Documents
+</Button>
+
+
+            {/* Tasks Table */}
             <Card className="rounded-2xl shadow-sm">
               <CardHeader className="pb-2">
                 <CardTitle>
@@ -574,7 +613,9 @@ export default function DashboardPage() {
                                 <div className="flex flex-col gap-2">
                                   <Input
                                     value={editTitle}
-                                    onChange={(e) => setEditTitle(e.target.value)}
+                                    onChange={(e) =>
+                                      setEditTitle(e.target.value)
+                                    }
                                     className="h-10 rounded-xl"
                                   />
 
@@ -628,7 +669,9 @@ export default function DashboardPage() {
                                   </SelectItem>
                                   <SelectItem value="backlog">Backlog</SelectItem>
                                   <SelectItem value="done">Done</SelectItem>
-                                  <SelectItem value="canceled">Canceled</SelectItem>
+                                  <SelectItem value="canceled">
+                                    Canceled
+                                  </SelectItem>
                                 </SelectContent>
                               </Select>
                             </td>
@@ -686,6 +729,8 @@ export default function DashboardPage() {
                 </div>
               </CardContent>
             </Card>
+
+            
           </>
         )}
       </div>
